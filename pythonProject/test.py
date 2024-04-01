@@ -1,5 +1,6 @@
 import pyxel
 import math
+import random
 MAXWIDTH=1080
 MAXHEIGHT=720
 def updateEntities(entities):
@@ -26,6 +27,10 @@ class Jeu:
         self.cooldown=0
         self.position=[MAXWIDTH/2,MAXHEIGHT/2]
         self.projectiles=[]
+        self.enemies=[]
+        self.clipsizex=200
+        self.clipsizey=200
+        self.clippos=[MAXWIDTH/2,MAXHEIGHT/2]
 
         pyxel.run(self.update, self.draw)
 
@@ -42,8 +47,29 @@ class Jeu:
             self.position[1] += 3
         if pyxel.btn(pyxel.KEY_UP) and self.position[1]>0:
             self.position[1] += -3
+        if pyxel.btn(pyxel.KEY_J):
+            self.enemies.append(Enemy(self,random.randint(0,MAXWIDTH), random.randint(0,MAXHEIGHT)))
 
-
+    def closeclip(self):
+        pass
+        '''if self.clipsizex>100:
+            self.clipsizex-=(self.clipsizex-100)/100
+        if self.clipsizey>100:
+            self.clipsizey-=(self.clipsizey-100)/100'''
+            
+    def deplacementClip(self):
+        self.directionclip = [self.position[0] - self.clippos[0], self.position[1] - self.clippos[1]]
+        # Normalisation du vecteur direction
+        length = math.sqrt(self.directionclip[0] ** 2 + self.directionclip[1] ** 2)
+        speed=max(length/20,1)
+        if length != 0:
+            self.directionclip[0] /= length
+            self.directionclip[1] /= length
+        # Déplacement vars la cible
+        if abs(self.clippos[0]-self.position[0])>5 :
+            self.clippos[0] += self.directionclip[0] * speed
+        if abs(self.clippos[1]-self.position[1])>5 :
+            self.clippos[1] += self.directionclip[1] * speed
     # =====================================================
     # == UPDATE
     # =====================================================
@@ -51,18 +77,24 @@ class Jeu:
         """mise à jour des variables (30 fois par seconde)"""
 
         # deplacement du vaisseau
-        pyxel.clip(pyxel.mouse_x-200,pyxel.mouse_y-200,400,400)
+
+        self.closeclip()
+        self.deplacementClip()
         self.vaisseau_deplacement()
         self.tir()
         self.recharge()
         if len(self.projectiles)!=0:
             updateEntities(self.projectiles)
+        if len(self.enemies)!=0:
+            updateEntities(self.enemies)
 
     def tir(self):
         if pyxel.btn(pyxel.MOUSE_BUTTON_LEFT) and self.cooldown<=1:
             self.projectiles.append(Projectile(self.position[0], self.position[1]))
-            self.cooldown=5
+            self.cooldown=10
 
+    def get_position(self):
+        return self.position
 
 
     # =====================================================
@@ -75,9 +107,12 @@ class Jeu:
         pyxel.cls(1)
 
         # vaisseau (carre 8x8)
+        pyxel.clip(self.clippos[0]-self.clipsizex/2,self.clippos[1]-self.clipsizey/2,self.clipsizex,self.clipsizey)
+        pyxel.rectb(self.clippos[0]-self.clipsizex/2-10, self.clippos[1]-self.clipsizey/2-10, self.clipsizex,self.clipsizey, 2)
         pyxel.rect(0, 0, MAXWIDTH, MAXHEIGHT, 13)
         drawEntities(self.projectiles)
-        drawVaisseau(self.position[0], self.position[1], 20)
+        drawEntities(self.enemies)
+        drawVaisseau(self.position[0], self.position[1], 40)
 
 class Projectile:
     def __init__(self,x,y):
@@ -85,14 +120,14 @@ class Projectile:
         self.speed=10
         self.target_position=[pyxel.mouse_x,pyxel.mouse_y]
         self.direction = [self.target_position[0] - self.position[0], self.target_position[1] - self.position[1]]
-        # Normalize direction vector
+        # Normalisation du vecteur direction
         length = math.sqrt(self.direction[0] ** 2 + self.direction[1] ** 2)
         if length != 0:
             self.direction[0] /= length
             self.direction[1] /= length
         self.cooldown=50
     def projectileDeplacement(self):
-        # Move towards target
+        # Déplacement vars la cible
         self.position[0] += self.direction[0] * self.speed
         self.position[1] += self.direction[1] * self.speed
     def update(self):
@@ -102,6 +137,28 @@ class Projectile:
     def draw(self):
         pyxel.circ(self.position[0]+4, self.position[1]+4, 10, 10)
 
+class Enemy:
+    def __init__(self,game,x,y):
+        self.position = [x,y]
+        self.speed=2
+        self.game=game
+    def EnemyDeplacement(self):
+        self.position[0] += self.direction[0] * self.speed
+        self.position[1] += self.direction[1] * self.speed
+    def update(self):
+        game=self.game
+        self.target_position = game.get_position()
+        self.direction = [self.target_position[0] - self.position[0], self.target_position[1] - self.position[1]]
+        # Normalisation du vecteur direction
+        length = math.sqrt(self.direction[0] ** 2 + self.direction[1] ** 2)
+        if length != 0:
+            self.direction[0] /= length
+            self.direction[1] /= length
+        self.EnemyDeplacement()
+        self.draw()
+    def draw(self):
+        pyxel.circ(self.position[0], self.position[1], 13, 2)
+        
 
 Jeu()
 
